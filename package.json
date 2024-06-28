@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@fastify/cors": "^8.3.0",
+    "bcrypt": "^5.1.1",
     "dotenv": "^16.0.2",
     "esbuild": "^0.15.8",
     "fastify": "^4.22.2",
