@@ -1,0 +1,24 @@
+{
+  "name": "floway-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node esbuild.js start",
+    "build": "node esbuild.js build"
+  },
+  "keywords": [],
+  "author": "echap",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/cors": "^8.3.0",
+    "dotenv": "^16.0.2",
+    "esbuild": "^0.15.8",
+    "fastify": "^4.22.2",
+    "jsonwebtoken": "^9.0.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/node": "^18.7.18"
+  }
+}
