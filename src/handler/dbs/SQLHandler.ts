@@ -39,7 +39,7 @@ class SQLHandler {
         return this.instance;
     }
 
-    async query(sql:string, values = [], pool: "prod" | "dev") {
+    async query(sql:string, values = []) {
         let connection;
 
         try {
@@ -47,7 +47,7 @@ class SQLHandler {
             const [rows] = await connection.execute(sql, values);
             return rows;
         } catch (error) {
-            throw new Error(`Error executing query (pool : ${pool}): ${error.message}`);
+            throw new Error(`Error executing query : ${error.message}`);
         } finally {
             // Release the connection back to the prodPool when done
             connection && connection.release();
