@@ -1,5 +1,5 @@
 import {FastifyInstance} from "fastify";
-import User from "../../entity/user";
+import User from "../../entity/User";
 
 
 
@@ -9,26 +9,41 @@ import User from "../../entity/user";
  */
 export function userControllers(server: FastifyInstance) {
 
-    /**
-     * [GET] /health
-     * This method is always required to check that the server is up and running
-     */
-
-    server.post('/register', async (request, reply) => {
-        console.log("ere");
-        const { name, email, password } = request.body;
-        const user = await User.getInstance().createUser(name, email, password);
-        reply.send({ message: 'User registered successfully', user });
+    server.post<{Body: {first_name: string, last_name: string, email: string, password: string}}>('/register', async (request, reply) => {
+        const { first_name, last_name, email, password } = request.body;
+        try {
+            const user = await User.getInstance().createUser(first_name, last_name, email, password);
+            reply.send({ message: 'User registered successfully', "data": {"user_id": user} });
+        } catch (e) {
+            if (e?.message && e.message.startsWith('User error:')) {
+                reply.status(400)
+                reply.send({ message: e.message });
+                return;
+            }
+            return e;
+        }
     });
 
-    server.get('/users', async (request, reply) => {
+    server.post<{Body: {email: string, password: string}}>('/login', async (request, reply) => {
+        const { email, password } = request.body;
+        try {
+            const user = await User.getInstance().login(email, password);
+            console.log(user)
+            const token = server.jwt.sign(user);
+            console.log(token)
+            reply.send({ token });
+        } catch (e) {
+            if (e?.message && e.message.startsWith('User error:')) {
+                reply.status(400)
+                reply.send({ message: e.message });
+                return;
+            }
+        }
+    });
+
+    server.get('/api/users', async (request, reply) => {
         let  id = request.query.id ;
         const users = await User.getInstance().getUserById(id);
         reply.send({ users });
     });
-
-    server.get('/health', async (request, reply) => {
-        return {message: "OK"};
-    });
-
 }

@@ -8,14 +8,15 @@ class SQLHandler {
     //I set this constructor to private to prevent any external instantiation of the class.
     private constructor() {
         if (!SQLHandler.instance) {
-            const { hostname: host, auth, pathname } = parse(process.env.MYSQL_URI);
+            const { hostname: host, auth, pathname, port, path } = parse(process.env.MYSQL_URI);
 
             const [user, password] = auth.split(':');
             this.pool = createPool({
                 host:     host,
                 user:     user,
                 password: password,
-                database: null,
+                port:     parseInt(port as string),
+                database: path.split('/')[1],
                 waitForConnections: true,
                 connectionLimit: 10,
                 queueLimit: 0,

@@ -1,5 +1,7 @@
 import * as path from "path";
 import {server} from "./webServer/server";
+import {EntityInitializer} from "./entity/EntityInitializer";
+import {MongoHandler} from "./handler/dbs/MongoHandler";
 
 require('source-map-support').install(); //Required to get the typescript stack traces instead of the JS ones.
 require('dotenv').config({
@@ -13,6 +15,8 @@ require('dotenv').config({
  * No core functionality should be added here, it is only the place to start items.
  */
 const start = async () => {
+    EntityInitializer.init(); //Initializes the entities
+    await MongoHandler.init();
     await server(); //Launches the web server.
 }
 
