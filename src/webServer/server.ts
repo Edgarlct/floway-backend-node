@@ -1,6 +1,5 @@
 import {mainController} from "./controllers/mainController";
 import {firewall} from "./security/firewall";
-import {userControllers} from "./controllers/userControllers";
 import {locationController} from "./controllers/LocationController";
 import {readFileSync} from "node:fs";
 import * as path from "node:path";
@@ -34,10 +33,8 @@ export async function server() {
     })
 
 
-    //Register the controllers below
     mainController(fastify);
     locationController(fastify);
-    userControllers(fastify);
     firewall(fastify);
 
     //Change host to 0.0.0.0 to allow connections from other computers
