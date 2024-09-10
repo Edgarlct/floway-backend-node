@@ -1,11 +1,9 @@
 import {mainController} from "./controllers/mainController";
 import {firewall} from "./security/firewall";
 import {userControllers} from "./controllers/userControllers";
+import {locationController} from "./controllers/LocationController";
 import {readFileSync} from "node:fs";
 import * as path from "node:path";
-import {runControllers} from "./controllers/runController";
-import customRun from "../entity/CustomRun";
-import {customRunControllers} from "./controllers/customRunController";
 
 export async function server() {
 
@@ -38,9 +36,8 @@ export async function server() {
 
     //Register the controllers below
     mainController(fastify);
+    locationController(fastify);
     userControllers(fastify);
-    runControllers(fastify);
-    customRunControllers(fastify);
     firewall(fastify);
 
     //Change host to 0.0.0.0 to allow connections from other computers
