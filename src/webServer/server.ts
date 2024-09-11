@@ -42,14 +42,22 @@ export async function server() {
 
                     console.log("Cron job executed every 10 seconds");
 
-                    const data = {
-                        id: "12",
-                        latitude: 45.66,
-                        longitude: 23.22,
+                    const a = {
+                        id: "2",
+                        latitude: 48.8566,
+                        longitude: 2.3522,
                         timestamp: "2024-09-10T10:00:00Z"
                     };
 
-                    // Faire un appel à l'endpoint `/location` pour envoyer les données
+
+
+                    const data = {
+                        id: "2",
+                        latitude: 48.8575,
+                        longitude: 2.3540,
+                        timestamp: "2024-09-10T10:02:00Z"
+                    };
+
                     const response = await server.inject({
                         method: 'POST',
                         url: '/location',
@@ -58,8 +66,6 @@ export async function server() {
 
 
                     console.log('Location data sent', response.payload);
-
-                    // clear variables data
                     delete data.id;
                     delete data.latitude;
                     delete data.longitude;

@@ -1,4 +1,5 @@
 import { MongoHandler } from '../../handler/dbs/MongoHandler';
+import {calculateAverageSpeed, calculateTotalDistance, calculateTotalDuration} from "../../tools/calculData";
 
 export function locationController(server) {
 
@@ -51,12 +52,28 @@ export function locationController(server) {
             const userPositionCollection = MongoHandler.getUserPositionCollection();
 
             const user = await userPositionCollection.findOne({id});
+            console.log(user);
+            const userSerialized = {
+                id: user.id,
+                positions: user.positions.map((position) => {
+                    return {
+                        latitude: position[0],
+                        longitude: position[1],
+                        timestamp: new Date(position[2] * 1000).toISOString()
+                    };
+                }),
+                totalDistance: calculateTotalDistance(user.positions),
+                averageSpeed: calculateAverageSpeed(user.positions),
+                totalDuration: calculateTotalDuration(user.positions)
+            };
+
+            console.log(userSerialized);
 
             if (!user) {
                 return reply.status(404).send({message: 'User not found'});
             }
 
-            reply.send(user);
+            reply.send(userSerialized);
 
         } catch (error) {
             console.error(error);
