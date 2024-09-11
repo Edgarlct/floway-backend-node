@@ -40,8 +40,6 @@ export async function server() {
                 cronTime: '*/15 * * * * *',
                 onTick: async function (server) {
 
-                    console.log("Cron job executed every 10 seconds");
-
                     const a = {
                         id: "2",
                         latitude: 48.8566,
@@ -63,14 +61,11 @@ export async function server() {
                         url: '/location',
                         payload: data
                     });
-
-
-                    console.log('Location data sent', response.payload);
                     delete data.id;
                     delete data.latitude;
                     delete data.longitude;
                     delete data.timestamp;
-                    console.log(data);
+
                 },
                 start: true,
             }
