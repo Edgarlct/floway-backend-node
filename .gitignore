@@ -2,3 +2,11 @@
 node_modules
 dist
 .env
+
+certs
+
+.dev.env
+.prod.env
+
+.package-lock.json
+

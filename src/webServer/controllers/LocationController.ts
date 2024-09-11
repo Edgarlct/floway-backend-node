@@ -39,4 +39,29 @@ export function locationController(server) {
         }
     });
 
+    server.get('/location/:id', async (request, reply) => {
+        const {id} = request.params;
+        if (!id) {
+            return reply.status(400).send({message: 'Invalid data'});
+        }
+
+        try {
+            await MongoHandler.init();
+
+            const userPositionCollection = MongoHandler.getUserPositionCollection();
+
+            const user = await userPositionCollection.findOne({id});
+
+            if (!user) {
+                return reply.status(404).send({message: 'User not found'});
+            }
+
+            reply.send(user);
+
+        } catch (error) {
+            console.error(error);
+            reply.status(500).send({message: 'Internal Server Error'});
+        }
+    }
+    );
 }
