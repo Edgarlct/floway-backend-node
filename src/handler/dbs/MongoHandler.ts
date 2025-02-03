@@ -13,6 +13,7 @@ export class MongoHandler {
     public static async init() {
         await this.getMongoClient();
         await this.prepareCollections();
+        await this.prepareSessionCollections();
     }
 
     public static async getMongoClient() {
@@ -54,9 +55,33 @@ export class MongoHandler {
         await db.collection("user-position").createIndex({last_tps_unix: 1});
         await db.collection("user-position").createIndex({reference_day: 1});
     }
+    private static async prepareSessionCollections() {
+        const db = this.mongoClient.db(process.env.MONGO_DB_NAME);
+        const collections = await db.collections();
+        if(!collections?.find((collection) => collection.collectionName === "sessions")) {
+            console.log(`No session collection found, creating it.`);
+            await db?.createCollection("sessions");
+            await this.createSessionIndex(db);
+        }
+
+        this.userPositionCollection  = db.collection("sessions");
+    }
+
+    private static async createSessionIndex(db:Db) {
+        // create index for id, company_tag, last_tps_unix, reference_day,device_id
+        await db.collection("sessions").createIndex({id: 1});
+        await db.collection("sessions").createIndex({user_id: 1});
+        await db.collection("sessions").createIndex({reference_day: 1});
+    }
 
     public static getUserPositionCollection() {
         return this.userPositionCollection;
     }
+
+    public static getSessionCollection() {
+        return this.userPositionCollection;
+    }
+
+
 
 }
