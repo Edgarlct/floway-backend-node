@@ -12,7 +12,6 @@ export async function server() {
         logger: false,
         bodyLimit: 1048576 * 10,
     });
-    const jwt = require('@fastify/jwt');
 
     //Register the plugins @fastify/cors
     fastify.register(require('@fastify/cors'), {

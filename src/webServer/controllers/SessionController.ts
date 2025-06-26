@@ -1,6 +1,7 @@
 import {MongoHandler} from '../../handler/dbs/MongoHandler';
 import {calculateAverageSpeed, calculateTotalDistance, calculateTotalDuration} from "../../tools/calculData";
 import {DateTime} from "luxon";
+import SQLHandler from "../../handler/dbs/SQLHandler";
 
 export interface ISessionPayload {
     session_type : "run" | "distance" | "time" | "free",
@@ -21,15 +22,16 @@ export function SessionController(server) {
     server.post("/session", async (request, reply) => {
         const payload = request.body as ISessionPayload
 
-        if (!payload.session_type || !payload.user_id || !payload.title || !payload.distance || !payload.calories || !payload.allure || !payload.time || !payload.tps) {
-            return reply.status(400).send({ message: "Invalid data" });
+        // Validation des champs obligatoires
+        if (!payload.user_id || !payload.tps || payload.tps.length === 0) {
+            return reply.status(400).send({ message: "Invalid data: user_id and tps are required" });
         }
 
-        if (payload.session_type !== "run" && payload.session_type !== "distance" && payload.session_type !== "time" && payload.session_type !== "free") {
-            return reply.status(400).send({ message: "Invalid data, session type must be 'run', 'distance' or 'time'" });
+        if (payload.session_type && payload.session_type !== "run" && payload.session_type !== "distance" && payload.session_type !== "time" && payload.session_type !== "free") {
+            return reply.status(400).send({ message: "Invalid data, session type must be 'run', 'distance', 'time' or 'free'" });
         }
 
-        // check if the session type is valid and if the objective is set
+        // Validation conditionnelle selon le type de session
         if (payload.session_type === "distance" && !payload.distance_objective) {
             return reply.status(400).send({ message: "Invalid data, distance objective is required" });
         }
@@ -47,25 +49,103 @@ export function SessionController(server) {
             const now = DateTime.now();
             const day = now.toFormat("yyyy-LL-dd");
 
-            const session = {
-                id: `${payload.user_id}-${now.toUnixInteger()}`,
-                reference_day: day,
-                session_type: payload.session_type,
-                user_id: payload.user_id,
-                title: payload.title,
-                distance: payload.distance,
-                calories: payload.calories,
-                allure: payload.allure,
-                time: payload.time,
-                tps: payload.tps,
-                time_objective: payload.time_objective || null,
-                distance_objective: payload.distance_objective || null,
-                run_id: payload.run_id || null,
-            };
+            // Calcul du dernier timestamp depuis le payload
+            const lastTpsFromPayload = payload.tps[payload.tps.length - 1][payload.tps[payload.tps.length - 1].length - 1];
 
-            const result = await sessionCollection.insertOne(session);
+            // Recherche de la session la plus récente pour cet utilisateur à cette date
+            const existingSession = await sessionCollection.findOne(
+              {
+                  user_id: payload.user_id,
+                  reference_day: day
+              },
+              {
+                  sort: { last_tps_unix: -1 }
+              }
+            );
 
-            reply.send({ message: "Session saved successfully", data: {insertedId:session.id} });
+            let shouldUpdate = false;
+
+            if (existingSession && existingSession.last_tps_unix) {
+                // Calcul de l'écart en secondes entre le dernier tps existant et le nouveau
+                const timeDifferenceSeconds = Math.abs(lastTpsFromPayload - existingSession.last_tps_unix);
+                const fiveMinutesInSeconds = 5 * 60;
+
+                shouldUpdate = timeDifferenceSeconds <= fiveMinutesInSeconds;
+            }
+
+            if (shouldUpdate) {
+                // UPDATE : Mise à jour de la session existante
+                const setData: any = {
+                    last_tps_unix: lastTpsFromPayload
+                };
+
+                // Ajouter seulement les champs présents dans le payload
+                if (payload.session_type) setData.session_type = payload.session_type;
+                if (payload.title) setData.title = payload.title;
+                if (payload.distance !== undefined && payload.distance !== null) setData.distance = payload.distance;
+                if (payload.calories !== undefined && payload.calories !== null) setData.calories = payload.calories;
+                if (payload.allure !== undefined && payload.allure !== null) setData.allure = payload.allure;
+                if (payload.time) setData.time = payload.time;
+                if (payload.time_objective) setData.time_objective = payload.time_objective;
+                if (payload.distance_objective) setData.distance_objective = payload.distance_objective;
+                if (payload.run_id) setData.run_id = payload.run_id;
+
+                const updateData = {
+                    $set: setData,
+                    $push: {
+                        tps: { $each: payload.tps }
+                    }
+                };
+
+                const result = await sessionCollection.updateOne(
+                  { user_id: payload.user_id, reference_day: day },
+                  updateData
+                );
+
+                reply.send({
+                    message: "Session updated successfully",
+                    data: {
+                        sessionId: existingSession.id,
+                        modified: result.modifiedCount > 0,
+                        action: "update"
+                    }
+                });
+
+            } else {
+                // CREATE : Création d'une nouvelle session
+                if (!payload.session_type || !payload.title || (payload.distance === undefined || payload.distance === null)
+                  || (payload.calories === undefined || payload.calories === null) || (payload.allure === undefined || payload.allure === null)
+                  || !payload.time) {
+                    return reply.status(400).send({ message: "Invalid data: all fields are required for new session creation" });
+                }
+
+                const session = {
+                    id: `${payload.user_id}-${now.toUnixInteger()}`,
+                    reference_day: day,
+                    session_type: payload.session_type,
+                    user_id: +payload.user_id,
+                    title: payload.title,
+                    distance: payload.distance,
+                    calories: payload.calories,
+                    allure: payload.allure,
+                    time: payload.time,
+                    tps: payload.tps,
+                    time_objective: payload.time_objective || null,
+                    distance_objective: payload.distance_objective || null,
+                    run_id: payload.run_id || null,
+                    last_tps_unix: lastTpsFromPayload
+                };
+
+                const result = await sessionCollection.insertOne(session);
+
+                reply.send({
+                    message: "Session created successfully",
+                    data: {
+                        sessionId: session.id,
+                        action: "create"
+                    }
+                });
+            }
 
         } catch (error) {
             console.error(error);
@@ -173,6 +253,103 @@ export function SessionController(server) {
             const result = await sessionCollection.deleteOne({ id });
 
             return reply.send({ message: "Session deleted successfully", result });
+
+        } catch (error) {
+            console.error(error);
+            reply.status(500).send({ message: "Internal Server Error" });
+        }
+    })
+
+    server.get("/auth/friend/session", async (request, reply) => {
+        const sqlInstance = SQLHandler.getInstance();
+
+        try {
+            await MongoHandler.init();
+            const now = DateTime.now().minus({minute: 5}).toUnixInteger();
+            const user_id = request.jwt.user_id;
+
+            const blocked_friend_notificaiton = await sqlInstance.query(`
+                SELECT user_id
+                FROM friend_notification_settings
+                WHERE friend_id = ? AND is_notification_block IS TRUE
+            `, [user_id]);
+
+            const blocked_friend_ids = blocked_friend_notificaiton.map(row => row.user_id);
+
+            const friends = await sqlInstance.query(`
+                SELECT user_a_id, user_b_id 
+                FROM friend 
+                WHERE is_waiting IS NOT TRUE
+                AND (user_a_id = ? OR user_b_id = ?)
+            `, [user_id, user_id]);
+
+
+            if (!friends || friends.length === 0) {
+                return reply.send([]);
+            }
+
+            const user_ids = friends.reduce((acc, friend) => {
+                if (friend.user_a_id !== user_id && !blocked_friend_ids.includes(friend.user_a_id)) {
+                    acc.push(friend.user_a_id);
+                }
+                if (friend.user_b_id !== user_id && !blocked_friend_ids.includes(friend.user_b_id)) {
+                    acc.push(friend.user_b_id);
+                }
+                return acc;
+            }, []);
+
+
+
+
+            const sessionCollection = MongoHandler.getSessionCollection();
+
+            const sessions = await sessionCollection.aggregate([
+                {
+                    $match: {
+                        user_id: { $in: user_ids.map(id => parseInt(id)) },
+                        last_tps_unix: { $gte: now }
+                    }
+                },
+                {
+                    $sort: { reference_day: -1 }
+                },
+                {
+                    $project: {
+                        user_id: 1,
+                        id: 1
+                    }
+                }
+            ]).toArray();
+
+            return reply.send(sessions);
+
+        } catch (error) {
+            console.error(error);
+            reply.status(500).send({ message: "Internal Server Error" });
+        }
+    })
+
+    server.get("/last/user/session/:user_id", async (request, reply) => {
+        const { user_id } = request.params;
+        if (!user_id) {
+            return reply.status(400).send({ message: "Invalid data" });
+        }
+
+        try {
+            await MongoHandler.init();
+
+            const sessionCollection = MongoHandler.getSessionCollection();
+
+            const lastSession = await sessionCollection.findOne(
+                { user_id: parseInt(user_id) },
+                { sort: { last_tps_unix: -1 } }
+            );
+
+            if (!lastSession) {
+                return reply.status(404).send({ message: "No session found for this user" });
+            }
+
+            return reply.send(lastSession);
 
         } catch (error) {
             console.error(error);
