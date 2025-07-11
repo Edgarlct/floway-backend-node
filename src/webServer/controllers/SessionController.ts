@@ -48,6 +48,16 @@ export function SessionController(server) {
             const sessionCollection = MongoHandler.getSessionCollection();
             const now = DateTime.now();
             const day = now.toFormat("yyyy-LL-dd");
+            // check if the tps contains valid objects
+            if (!Array.isArray(payload.tps) || payload.tps.length === 0 || !payload.tps.every(t => Array.isArray(t) && t.length === 3)) {
+                return reply.status(400).send({ message: "Invalid data, tps must be an array of [latitude, longitude, timestamp] arrays" });
+            }
+
+            // filter all tps that are not valid, and where the timestamp is a valid unix timestamp
+            console.log("Before filtering tps:", payload.tps.length);
+            payload.tps = payload.tps.filter(t => Array.isArray(t) && t.length === 3 && !isNaN(t[2]) && t[2] > 0 && (t[2]).toString().length === 10);
+            console.log("After filtering tps:", payload.tps.length);
+
 
             // Calcul du dernier timestamp depuis le payload
             const lastTpsFromPayload = payload.tps[payload.tps.length - 1][payload.tps[payload.tps.length - 1].length - 1];
@@ -63,14 +73,19 @@ export function SessionController(server) {
               }
             );
 
+
             let shouldUpdate = false;
 
             if (existingSession && existingSession.last_tps_unix) {
                 // Calcul de l'écart en secondes entre le dernier tps existant et le nouveau
                 const timeDifferenceSeconds = Math.abs(lastTpsFromPayload - existingSession.last_tps_unix);
-                const fiveMinutesInSeconds = 5 * 60;
+                const fiveMinutesInSeconds = 1.2 * 60;
+                console.log("Time difference in seconds:", timeDifferenceSeconds);
+                console.log("Last TPS from payload:", lastTpsFromPayload);
+                console.log("Existing session last TPS:", existingSession.last_tps_unix);
 
                 shouldUpdate = timeDifferenceSeconds <= fiveMinutesInSeconds;
+                console.log("Should update:", shouldUpdate);
             }
 
             if (shouldUpdate) {
@@ -98,7 +113,7 @@ export function SessionController(server) {
                 };
 
                 const result = await sessionCollection.updateOne(
-                  { user_id: payload.user_id, reference_day: day },
+                  { _id: existingSession._id },
                   updateData
                 );
 
@@ -265,7 +280,7 @@ export function SessionController(server) {
 
         try {
             await MongoHandler.init();
-            const now = DateTime.now().minus({minute: 5}).toUnixInteger();
+            const now = DateTime.now().minus({minute: 2}).toUnixInteger();
             const user_id = request.jwt.user_id;
 
             const blocked_friend_notificaiton = await sqlInstance.query(`
@@ -277,10 +292,10 @@ export function SessionController(server) {
             const blocked_friend_ids = blocked_friend_notificaiton.map(row => row.user_id);
 
             const friends = await sqlInstance.query(`
-                SELECT user_a_id, user_b_id 
+                SELECT receiver_id, applicant_id 
                 FROM friend 
                 WHERE is_waiting IS NOT TRUE
-                AND (user_a_id = ? OR user_b_id = ?)
+                AND (applicant_id = ? OR receiver_id = ?)
             `, [user_id, user_id]);
 
 
@@ -289,11 +304,11 @@ export function SessionController(server) {
             }
 
             const user_ids = friends.reduce((acc, friend) => {
-                if (friend.user_a_id !== user_id && !blocked_friend_ids.includes(friend.user_a_id)) {
-                    acc.push(friend.user_a_id);
+                if (friend.applicant_id !== user_id && !blocked_friend_ids.includes(friend.applicant_id)) {
+                    acc.push(friend.applicant_id);
                 }
-                if (friend.user_b_id !== user_id && !blocked_friend_ids.includes(friend.user_b_id)) {
-                    acc.push(friend.user_b_id);
+                if (friend.receiver_id !== user_id && !blocked_friend_ids.includes(friend.receiver_id)) {
+                    acc.push(friend.receiver_id);
                 }
                 return acc;
             }, []);
@@ -303,11 +318,14 @@ export function SessionController(server) {
 
             const sessionCollection = MongoHandler.getSessionCollection();
 
+            console.log(now)
             const sessions = await sessionCollection.aggregate([
                 {
                     $match: {
                         user_id: { $in: user_ids.map(id => parseInt(id)) },
-                        last_tps_unix: { $gte: now }
+                        // last_tps_unix not null and greater than now - 5 minutes
+                        last_tps_unix: { $gt: now }
+
                     }
                 },
                 {

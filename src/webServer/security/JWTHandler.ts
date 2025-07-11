@@ -23,7 +23,7 @@ export class JWTHandler {
   public static verifyJwt(token: string): boolean {
     const jwtHandler = require('jsonwebtoken');
     try {
-      jwtHandler.verify(token, public_key, {algorithms: ["RS256"], ignoreExpiration: true});
+      jwtHandler.verify(token, process.env.JWT_PUBLIC, {algorithms: ["RS256"], ignoreExpiration: true});
       return true;
     } catch (e) {
       return false;
@@ -38,7 +38,7 @@ export class JWTHandler {
 }
 
 //This is the public key that allows the microservice to verify that a JWT was issued by the main stack
-const public_key = `-----BEGIN PUBLIC KEY-----
+export const public_key = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnqKYoNnFQbvDOQ4+SPZI
 fl2RzvnOc4KtYOFOETm+D9VVCsoKBU5m4PMnhteb9g2HbjpgY61sQ8Uwe+/H7F4I
 5IIVanzMY70fUARdXZYjSmZO4g0Gi/2jqIo6irjPuxQlTfHCE6ZstKIYcTavlXf0

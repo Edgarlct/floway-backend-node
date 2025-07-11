@@ -1,10 +1,7 @@
 import { mainController } from "./controllers/mainController";
 import { firewall } from "./security/firewall";
-import { locationController } from "./controllers/LocationController";
-import { readFileSync } from "node:fs";
-import * as path from "node:path";
-import fastifyCron from 'fastify-cron';
 import {SessionController} from "./controllers/SessionController";
+import {MqttController} from "./controllers/MqttController";
 
 export async function server() {
 
@@ -24,6 +21,7 @@ export async function server() {
 
     mainController(fastify);
     SessionController(fastify);
+    MqttController(fastify);
     firewall(fastify);
 
     //Change host to 0.0.0.0 to allow connections from other computers

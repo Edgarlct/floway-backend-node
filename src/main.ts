@@ -1,7 +1,8 @@
 import * as path from "path";
 import {server} from "./webServer/server";
 import {MongoHandler} from "./handler/dbs/MongoHandler";
-import {wsManager} from "./websocketServer/WebSocketServer";
+import {MqttServer} from "./mqttServer/MqttServer";
+import {MqttClient} from "./services/MqttClient";
 
 require('source-map-support').install();
 require('dotenv').config({
@@ -16,8 +17,16 @@ require('dotenv').config({
 const start = async () => {
     await MongoHandler.init();
 
-    // Le serveur WebSocket est déjà démarré via le singleton
-    console.log(`WebSocket server initialized on port ${process.env.WS_PORT || '8080'}`);
+    const mqttServer = new MqttServer(
+        +(process.env.MQTT_PORT || 8888),
+        +(process.env.MQTT_WS_PORT || 8883),
+        +(process.env.MQTT_WSS_PORT || 8884)
+    );
+    await mqttServer.start();
+
+    const mqttClient = new MqttClient();
+    await mqttClient.connect();
+    mqttClient.subscribe(['server/status', 'mobile/+']);
 
     await server(); // Lancer le serveur web
 }
