@@ -2,7 +2,7 @@ import * as path from "path";
 import {server} from "./webServer/server";
 import {MongoHandler} from "./handler/dbs/MongoHandler";
 import {MqttServer} from "./mqttServer/MqttServer";
-import {MqttClient} from "./services/MqttClient";
+import {MqttClient} from "./handler/MqttClient";
 
 require('source-map-support').install();
 require('dotenv').config({

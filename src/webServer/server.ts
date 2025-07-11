@@ -1,13 +1,13 @@
 import { mainController } from "./controllers/mainController";
 import { firewall } from "./security/firewall";
 import {SessionController} from "./controllers/SessionController";
-import {MqttController} from "./controllers/MqttController";
+import {EventController} from "./controllers/EventController";
 
 export async function server() {
 
     const fastify = require('fastify')({
         logger: false,
-        bodyLimit: 1048576 * 10,
+        bodyLimit: 1048576 * 50,
     });
 
     //Register the plugins @fastify/cors
@@ -21,7 +21,7 @@ export async function server() {
 
     mainController(fastify);
     SessionController(fastify);
-    MqttController(fastify);
+    EventController(fastify);
     firewall(fastify);
 
     //Change host to 0.0.0.0 to allow connections from other computers
