@@ -24,10 +24,6 @@ const start = async () => {
     );
     await mqttServer.start();
 
-    const mqttClient = new MqttClient();
-    await mqttClient.connect();
-    mqttClient.subscribe(['server/status', 'mobile/+']);
-
     await server(); // Lancer le serveur web
 }
 

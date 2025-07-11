@@ -2,11 +2,12 @@ import * as mqtt from 'mqtt';
 import * as jwt from 'jsonwebtoken';
 
 export class MqttClient {
+    private static instance: MqttClient | null = null;
     private client: mqtt.MqttClient | null = null;
     private brokerUrl: string;
     private options: mqtt.IClientOptions;
 
-    constructor(brokerUrl: string = `mqtt://localhost:${process.env.MQTT_PORT || 1883}`) {
+    private constructor(brokerUrl: string = `mqtt://localhost:${process.env.MQTT_PORT || 8888}`) {
         this.brokerUrl = brokerUrl;
         this.options = {
             clientId: `fastify-server-${Math.random().toString(16).substr(2, 8)}`,
@@ -16,6 +17,13 @@ export class MqttClient {
             password: null,
             reconnectPeriod: 1000,
         };
+    }
+
+    public static getInstance(brokerUrl?: string): MqttClient {
+        if (!MqttClient.instance) {
+            MqttClient.instance = new MqttClient(brokerUrl);
+        }
+        return MqttClient.instance;
     }
 
     public async connect(): Promise<void> {
@@ -80,6 +88,7 @@ export class MqttClient {
         }
 
         const payload = typeof message === 'string' ? message : JSON.stringify(message);
+        console.log(this.brokerUrl)
 
         this.client.publish(topic, payload, options || {}, (error) => {
             if (error) {

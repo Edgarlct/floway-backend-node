@@ -3,6 +3,7 @@ import {DateTime} from "luxon";
 import {IEvent} from "../../interface/IEvent";
 import {MongoHandler} from "../../handler/dbs/MongoHandler";
 import {ReadableStream} from "node:stream/web";
+import {MqttClient} from "../../handler/MqttClient";
 
 
 export function EventController(server) {
@@ -43,11 +44,27 @@ export function EventController(server) {
 
     // update event array to include the new event
     const coll = MongoHandler.getSessionCollection();
+
+    const session = await coll.findOne({ id: session_id.value });
+    if (!session) {
+      return reply.status(404).send({ message: "Session not found" });
+    }
+
+    const user_session = session.user_id;
+
     await coll.updateOne(
       { id: session_id.value},
       { $push: { events: event } },
       { upsert: true }
     );
+
+    const mqttInstance = MqttClient.getInstance();
+    try {
+      await mqttInstance.connect();
+    } catch (error) {}
+
+    mqttInstance.publish(`event/${user_session}/`, JSON.stringify(event));
+
 
     return reply.send(["Event received successfully"]);
   })
