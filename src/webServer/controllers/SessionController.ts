@@ -2,6 +2,8 @@ import {MongoHandler} from '../../handler/dbs/MongoHandler';
 import {calculateAverageSpeed, calculateTotalDistance, calculateTotalDuration} from "../../tools/calculData";
 import {DateTime} from "luxon";
 import SQLHandler from "../../handler/dbs/SQLHandler";
+import {fetchFriendIds} from "../../tools/FriendTools";
+import notificationService from "../../tools/NotificationService";
 
 export interface ISessionPayload {
     session_type : "run" | "distance" | "time" | "free",
@@ -86,6 +88,27 @@ export function SessionController(server) {
 
                 shouldUpdate = timeDifferenceSeconds <= fiveMinutesInSeconds;
                 console.log("Should update:", shouldUpdate);
+            }
+
+            if (!shouldUpdate) {
+                const friendIds = await fetchFriendIds(payload.user_id.toString());
+                if (friendIds.length > 0) {
+                    const sqlInstance = SQLHandler.getInstance();
+
+                    let expoTokens = await sqlInstance.query(`SELECT expo_token FROM user WHERE id IN ${SQLHandler.genQMS(friendIds.length)}`, friendIds);
+                    if (expoTokens.length > 0) {
+                        let user = await sqlInstance.query(`SELECT first_name, last_name FROM user WHERE id = ?`, [payload.user_id]);
+                        expoTokens = expoTokens.map(token => token.expo_token).filter(token => token);
+                        await notificationService.sendNotifications(expoTokens, {
+                            title: `${user[0].first_name} est parti courir ! 🏃`,
+                            body: `Balance lui une dose de motivation - ou une bonne vanne 🔊`,
+                            data: {
+                                type: "friendSession",
+                                userId: payload.user_id,
+                            },
+                        })
+                    }
+                }
             }
 
             if (shouldUpdate) {
@@ -283,35 +306,7 @@ export function SessionController(server) {
             const now = DateTime.now().minus({minute: 2}).toUnixInteger();
             const user_id = request.jwt.user_id;
 
-            const blocked_friend_notificaiton = await sqlInstance.query(`
-                SELECT user_id
-                FROM friend_notification_settings
-                WHERE friend_id = ? AND is_notification_block IS TRUE
-            `, [user_id]);
-
-            const blocked_friend_ids = blocked_friend_notificaiton.map(row => row.user_id);
-
-            const friends = await sqlInstance.query(`
-                SELECT receiver_id, applicant_id 
-                FROM friend 
-                WHERE is_waiting IS NOT TRUE
-                AND (applicant_id = ? OR receiver_id = ?)
-            `, [user_id, user_id]);
-
-
-            if (!friends || friends.length === 0) {
-                return reply.send([]);
-            }
-
-            const user_ids = friends.reduce((acc, friend) => {
-                if (friend.applicant_id !== user_id && !blocked_friend_ids.includes(friend.applicant_id)) {
-                    acc.push(friend.applicant_id);
-                }
-                if (friend.receiver_id !== user_id && !blocked_friend_ids.includes(friend.receiver_id)) {
-                    acc.push(friend.receiver_id);
-                }
-                return acc;
-            }, []);
+            const user_ids = await fetchFriendIds(user_id);
 
 
 
