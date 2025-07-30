@@ -148,8 +148,10 @@ export class MqttServer {
         this.wssServer.on('connection', (socket: WebSocket, request: any) => {
             console.log('New WebSocket Secure connection');
 
+            const params = new URLSearchParams(request.url.split('?')[1]);
+
             // Authenticate the WebSocket client
-            const jwt = request.headers['sec-websocket-protocol'] || request.headers['authorization'];
+            const jwt = request.headers['authorization'] || params.get('token');
             if (!jwt || !this.isAuthenticated(jwt)) {
                 console.error('WebSocket Secure authentication failed');
                 socket.close();

@@ -105,6 +105,7 @@ export function SessionController(server) {
                             data: {
                                 type: "friendSession",
                                 userId: payload.user_id,
+                                firstName: user[0].first_name,
                             },
                         })
                     }
