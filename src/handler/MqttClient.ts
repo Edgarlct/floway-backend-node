@@ -1,5 +1,4 @@
 import * as mqtt from 'mqtt';
-import * as jwt from 'jsonwebtoken';
 
 export class MqttClient {
     private static instance: MqttClient | null = null;
@@ -12,10 +11,13 @@ export class MqttClient {
         this.options = {
             clientId: `fastify-server-${Math.random().toString(16).substr(2, 8)}`,
             clean: true,
-            connectTimeout: 4000,
+            connectTimeout: 10000,
             username: 'fastify-server',
             password: null,
-            reconnectPeriod: 1000,
+            reconnectPeriod: 5000,
+            keepalive: 60,
+            reschedulePings: true,
+            protocolVersion: 4,
         };
     }
 
